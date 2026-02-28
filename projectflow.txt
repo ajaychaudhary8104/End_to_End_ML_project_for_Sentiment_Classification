@@ -12,7 +12,9 @@
 8. Go to: https://dagshub.com/dashboard
 9. Create > New Repo > Connect a repo > (Github) Connect > Select your repo > Connect
 10. Copy experiment tracking url and code snippet. (Also try: Go To MLFlow UI)
-11. pip install dagshub & mlflow
+
+  
+11. pip install dagshub mlflow setuptools
 
 12. Run the exp notebooks
 13. git add - commit - push
