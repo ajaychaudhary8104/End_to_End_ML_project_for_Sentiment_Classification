@@ -7,6 +7,7 @@ import logging
 import mlflow
 import mlflow.sklearn
 import dagshub
+import time
 import os
 from src.logger import logging
 
@@ -93,6 +94,11 @@ def save_model_info(run_id: str, model_path: str, file_path: str) -> None:
 
 def main():
     mlflow.set_experiment("my-dvc-pipeline")
+    
+    # Remove old experiment info to ensure fresh run data
+    if os.path.exists('reports/experiment_info.json'):
+        os.remove('reports/experiment_info.json')
+
     with mlflow.start_run() as run:  # Start an MLflow run
         try:
             clf = load_model('./models/model.pkl')
@@ -115,11 +121,36 @@ def main():
                 for param_name, param_value in params.items():
                     mlflow.log_param(param_name, param_value)
             
+            # Log tag to ensure run uniqueness
+            mlflow.set_tag("pipeline_step", "evaluation")
+            mlflow.set_tag("created_at", pd.Timestamp.now().isoformat())
+            
             # Log model to MLflow
-            mlflow.sklearn.log_model(clf, "model")
+            artifact_path = "model"
+            mlflow.sklearn.log_model(clf, artifact_path)
+            
+            # Wait for artifact upload consistency
+            logging.info("Waiting for artifact upload to propagate...")
+            
+            # Verify artifacts uploaded successfully with retries
+            client = mlflow.tracking.MlflowClient()
+            artifacts = []
+            for i in range(6):  # Retry for up to 60 seconds
+                time.sleep(10)
+                artifacts = client.list_artifacts(run.info.run_id, artifact_path)
+                if artifacts:
+                    break
+                logging.info(f"Artifacts not found yet, retrying ({i+1}/6)...")
+
+            if not artifacts:
+                root_artifacts = client.list_artifacts(run.info.run_id)
+                logging.info(f"Root artifacts found: {[a.path for a in root_artifacts]}")
+                logging.warning(f"Model artifacts not found at '{artifact_path}'. Upload may have failed or is delayed. Proceeding...")
+            else:
+                logging.info(f"Model artifacts verified: {[a.path for a in artifacts]}")
             
             # Save model info
-            save_model_info(run.info.run_id, "model", 'reports/experiment_info.json')
+            save_model_info(run.info.run_id, artifact_path, 'reports/experiment_info.json')
             
             # Log the metrics file to MLflow
             mlflow.log_artifact('reports/metrics.json')
