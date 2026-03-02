@@ -15,13 +15,27 @@ warnings.filterwarnings("ignore")
 # -------------------------------------------------------------------------------------
 # Set up DagsHub credentials for MLflow tracking
 
+dagshub_token = os.getenv("CAPSTONE_TEST")
+if not dagshub_token:
+    raise EnvironmentError("CAPSTONE_TEST environment variable is not set")
+
+os.environ["MLFLOW_TRACKING_USERNAME"] = dagshub_token
+os.environ["MLFLOW_TRACKING_PASSWORD"] = dagshub_token
+
+dagshub_url = "https://dagshub.com"
+repo_owner = "ajaychaudhary8104"
+repo_name = "End_to_End_ML_project_for_Sentiment_Classification"
+
+# Set up MLflow tracking URI
+mlflow.set_tracking_uri(f'{dagshub_url}/{repo_owner}/{repo_name}.mlflow')
+
 # -------------------------------------------------------------------------------------
 
 
 # Below code block is for local use
 # -------------------------------------------------------------------------------------
-mlflow.set_tracking_uri('https://dagshub.com/ajaychaudhary8104/End_to_End_ML_project_for_Sentiment_Classification.mlflow')
-dagshub.init(repo_owner='ajaychaudhary8104', repo_name='End_to_End_ML_project_for_Sentiment_Classification', mlflow=True)
+#mlflow.set_tracking_uri('https://dagshub.com/ajaychaudhary8104/End_to_End_ML_project_for_Sentiment_Classification.mlflow')
+#dagshub.init(repo_owner='ajaychaudhary8104', repo_name='End_to_End_ML_project_for_Sentiment_Classification', mlflow=True)
 # -------------------------------------------------------------------------------------
 
 
