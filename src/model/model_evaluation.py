@@ -143,10 +143,12 @@ def main():
                 'model_path': "model", # This matches artifact_path above
                 'model_uri': model_info.model_uri
             }
-            
-            with open('reports/experiment_info.json', 'w') as f:
+            path_experiment_info = os.path.join('reports', 'experiment_info.json')
+            os.makedirs(os.path.dirname(path_experiment_info), exist_ok=True)
+            with open(path_experiment_info, 'w') as f:
                 json.dump(model_info_content, f, indent=4)
             
+            mlflow.log_artifact(path_experiment_info,artifact_path="experiment_info")
             mlflow.log_artifact('reports/metrics.json',artifact_path="metrics")
             
             print(f"Successfully logged Run ID: {run.info.run_id}")
