@@ -7,13 +7,16 @@ import logging
 import mlflow
 import mlflow.sklearn
 import dagshub
-import time
 import os
 from src.logger import logging
 
 
 # Below code block is for production use
 # -------------------------------------------------------------------------------------
+# Set up DagsHub credentials for MLflow tracking
+
+# -------------------------------------------------------------------------------------
+
 # Below code block is for local use
 # -------------------------------------------------------------------------------------
 mlflow.set_tracking_uri('https://dagshub.com/ajaychaudhary8104/End_to_End_ML_project_for_Sentiment_Classification.mlflow')
@@ -94,11 +97,6 @@ def save_model_info(run_id: str, model_path: str, file_path: str) -> None:
 
 def main():
     mlflow.set_experiment("my-dvc-pipeline")
-    
-    # Remove old experiment info to ensure fresh run data
-    if os.path.exists('reports/experiment_info.json'):
-        os.remove('reports/experiment_info.json')
-
     with mlflow.start_run() as run:  # Start an MLflow run
         try:
             clf = load_model('./models/model.pkl')
@@ -121,39 +119,25 @@ def main():
                 for param_name, param_value in params.items():
                     mlflow.log_param(param_name, param_value)
             
-            # Log tag to ensure run uniqueness
-            mlflow.set_tag("pipeline_step", "evaluation")
-            mlflow.set_tag("created_at", pd.Timestamp.now().isoformat())
-            
             # Log model to MLflow
-            artifact_path = "model"
-            mlflow.sklearn.log_model(clf, artifact_path)
-            
-            # Wait for artifact upload consistency
-            logging.info("Waiting for artifact upload to propagate...")
-            
-            # Verify artifacts uploaded successfully with retries
-            client = mlflow.tracking.MlflowClient()
-            artifacts = []
-            for i in range(6):  # Retry for up to 60 seconds
-                time.sleep(10)
-                artifacts = client.list_artifacts(run.info.run_id, artifact_path)
-                if artifacts:
-                    break
-                logging.info(f"Artifacts not found yet, retrying ({i+1}/6)...")
-
-            if not artifacts:
-                root_artifacts = client.list_artifacts(run.info.run_id)
-                logging.info(f"Root artifacts found: {[a.path for a in root_artifacts]}")
-                logging.warning(f"Model artifacts not found at '{artifact_path}'. Upload may have failed or is delayed. Proceeding...")
-            else:
-                logging.info(f"Model artifacts verified: {[a.path for a in artifacts]}")
-            
+            model_info = mlflow.sklearn.log_model(sk_model=clf,artifact_path="model",
+                     registered_model_name="Sentiment_Classification_Model",serialization_format="cloudpickle")
+            print(f"Model logged to MLflow with run ID: {run.info.run_id} and model path: {model_info.model_uri}")
             # Save model info
-            save_model_info(run.info.run_id, artifact_path, 'reports/experiment_info.json')
+            #save_model_info(run.info.run_id, "model", 'reports/experiment_info.json')
             
-            # Log the metrics file to MLflow
-            mlflow.log_artifact('reports/metrics.json')
+            model_info_content = {
+                'run_id': run.info.run_id,
+                'model_path': "model", # This matches artifact_path above
+                'model_uri': model_info.model_uri
+            }
+            
+            with open('reports/experiment_info.json', 'w') as f:
+                json.dump(model_info_content, f, indent=4)
+            
+            mlflow.log_artifact('reports/metrics.json',artifact_path="metrics")
+            
+            print(f"Successfully logged Run ID: {run.info.run_id}")
 
         except Exception as e:
             logging.error('Failed to complete the model evaluation process: %s', e)

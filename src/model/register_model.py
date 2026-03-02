@@ -42,32 +42,29 @@ def load_model_info(file_path: str) -> dict:
 def register_model(model_name: str, model_info: dict):
     """Register the model to the MLflow Model Registry."""
     try:
-        model_uri = f"runs:/{model_info['run_id']}/{model_info['model_path']}"
-        logging.info(f"Registering model from URI: {model_uri}")
+        #model_uri = f"runs:/{model_info['run_id']}/{model_info['model_path']}"
         
-        client = mlflow.tracking.MlflowClient()
-        run = client.get_run(model_info['run_id'])
-        logging.info(f"Run Artifact URI: {run.info.artifact_uri}")
-
-        # Verify artifacts exist
-        artifacts = client.list_artifacts(model_info['run_id'], model_info['model_path'])
-        if not artifacts:
-            logging.error(f"No artifacts found for run_id: {model_info['run_id']} at path: {model_info['model_path']}")
-            root_artifacts = client.list_artifacts(model_info['run_id'])
-            logging.info(f"Available artifacts at root: {[a.path for a in root_artifacts]}")
-            logging.warning("Artifacts not found. Proceeding with registration, but model version may be invalid.")
-
         # Register the model
-        model_version = mlflow.register_model(model_uri, model_name)
+        #model_version = mlflow.register_model(model_uri, model_name)
         
         # Transition the model to "Staging" stage
+    
+        # 1. Get the latest version number
+        client = mlflow.tracking.MlflowClient()
+        latest_version = client.get_latest_versions(model_name, stages=["None"])[0].version
+    
+        # 2. Transition it
         client.transition_model_version_stage(
-            name=model_name,
-            version=model_version.version,
-            stage="Staging"
-        )
+        name=model_name,
+        version=latest_version,
+        stage="Staging",
+        archive_existing_versions=True
+    )
+        print(f"✅ Version {latest_version} of '{model_name}' moved to Stagging.")
+
         
-        logging.debug(f'Model {model_name} version {model_version.version} registered and transitioned to Staging.')
+        
+        logging.debug('Model %s registered successfully with info: %s', model_name, model_info)
     except Exception as e:
         logging.error('Error during model registration: %s', e)
         raise
@@ -77,7 +74,7 @@ def main():
         model_info_path = 'reports/experiment_info.json'
         model_info = load_model_info(model_info_path)
         
-        model_name = "my_model"
+        model_name = "Sentiment_Classification_Model"
         register_model(model_name, model_info)
     except Exception as e:
         logging.error('Failed to complete the model registration process: %s', e)
@@ -85,3 +82,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
