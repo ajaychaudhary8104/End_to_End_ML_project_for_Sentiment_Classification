@@ -78,7 +78,6 @@
 
 38. Execute CICD pipeline till the stage where we build and push image to ECR.
 
-
 ----------------------------------------------------------------------------------
 *********Setup required before moving to EKS deployment*********
 ----------------------------------------------------------------------------------
